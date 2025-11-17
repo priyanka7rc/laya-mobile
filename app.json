@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "laya-mobile",
+    "slug": "laya-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.laya.mobile",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Laya needs access to your microphone to capture your voice for creating tasks.",
+        "NSSpeechRecognitionUsageDescription": "Laya uses speech recognition to convert your voice into tasks."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.laya.mobile",
+      "permissions": [
+        "RECORD_AUDIO"
+      ],
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
