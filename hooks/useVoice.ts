@@ -1,69 +1,52 @@
-import { useState, useEffect, useRef } from 'react';
-import Voice from '@react-native-voice/voice';
+import { useState } from 'react';
 import * as Haptics from 'expo-haptics';
+import { Platform, Alert } from 'react-native';
+
+// TEMPORARY: Expo Go doesn't support @react-native-voice/voice
+// This is a demo version. Real voice will work in the development build.
 
 export function useVoice() {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [isAvailable, setIsAvailable] = useState(false);
-
-  useEffect(() => {
-    // Check if voice recognition is available
-    Voice.isAvailable().then(available => {
-      setIsAvailable(!!available);
-    });
-
-    // Set up event listeners
-    Voice.onSpeechStart = () => {
-      setIsListening(true);
-      setError(null);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    };
-
-    Voice.onSpeechEnd = () => {
-      setIsListening(false);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    };
-
-    Voice.onSpeechResults = (e) => {
-      if (e.value && e.value.length > 0) {
-        setTranscript(e.value[0]);
-      }
-    };
-
-    Voice.onSpeechPartialResults = (e) => {
-      if (e.value && e.value.length > 0) {
-        setTranscript(e.value[0]);
-      }
-    };
-
-    Voice.onSpeechError = (e) => {
-      console.error('Speech error:', e);
-      setError(e.error?.message || 'Voice recognition error');
-      setIsListening(false);
-    };
-
-    // Cleanup
-    return () => {
-      Voice.destroy().then(Voice.removeAllListeners);
-    };
-  }, []);
+  const [isAvailable] = useState(true); // Demo mode
 
   const startListening = async () => {
     try {
       setTranscript('');
       setError(null);
-      await Voice.start('en-US');
+      setIsListening(true);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      // Show info about demo mode
+      Alert.alert(
+        'Demo Mode',
+        'Voice recognition requires a development build (not Expo Go).\n\nFor now, this is a UI demo. Real voice coming next!',
+        [
+          {
+            text: 'Got it',
+            onPress: () => {
+              // Simulate transcript after 2 seconds
+              setTimeout(() => {
+                setTranscript('Buy groceries, call mom, finish report');
+                setIsListening(false);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }, 2000);
+            },
+          },
+        ]
+      );
     } catch (e: any) {
       console.error('Start listening error:', e);
       setError(e.message || 'Could not start voice recognition');
+      setIsListening(false);
     }
   };
 
   const stopListening = async () => {
     try {
-      await Voice.stop();
+      setIsListening(false);
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch (e: any) {
       console.error('Stop listening error:', e);
     }
@@ -71,9 +54,9 @@ export function useVoice() {
 
   const cancelListening = async () => {
     try {
-      await Voice.cancel();
       setTranscript('');
       setError(null);
+      setIsListening(false);
     } catch (e: any) {
       console.error('Cancel listening error:', e);
     }
@@ -89,4 +72,5 @@ export function useVoice() {
     cancelListening,
   };
 }
+
 

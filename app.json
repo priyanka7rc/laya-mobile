@@ -17,7 +17,8 @@
       "bundleIdentifier": "com.laya.mobile",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Laya needs access to your microphone to capture your voice for creating tasks.",
-        "NSSpeechRecognitionUsageDescription": "Laya uses speech recognition to convert your voice into tasks."
+        "NSSpeechRecognitionUsageDescription": "Laya uses speech recognition to convert your voice into tasks.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -32,8 +33,28 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "useAndroidX": true,
+            "enableProguardInReleaseBuilds": false,
+            "enableShrinkResourcesInReleaseBuilds": false
+          }
+        }
+      ]
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "a67a6c34-8e1e-4fc2-98e1-fd543f6fb737"
+      }
+    },
+    "plugins": [
+      "expo-build-properties"
+    ]
   }
 }

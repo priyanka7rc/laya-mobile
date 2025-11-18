@@ -3,110 +3,36 @@ import {
   StyleSheet,
   Text,
   View,
-  ScrollView,
   SafeAreaView,
   StatusBar,
-  Alert,
-  Platform,
+  TouchableOpacity,
 } from 'react-native';
-import { VoiceButton } from './components/VoiceButton';
-import { useVoice } from './hooks/useVoice';
 
 export default function App() {
-  const {
-    isListening,
-    transcript,
-    error,
-    isAvailable,
-    startListening,
-    stopListening,
-  } = useVoice();
-
-  const handleVoicePress = () => {
-    if (isListening) {
-      stopListening();
-    } else {
-      if (!isAvailable) {
-        Alert.alert(
-          'Voice Not Available',
-          'Voice recognition is not available on this device.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-      startListening();
-    }
-  };
+  const [count, setCount] = React.useState(0);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
-      <ScrollView
-        contentContainerStyle={styles.scrollContainer}
-        bounces={false}
-      >
-        <View style={styles.container}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>What's on your mind?</Text>
-            <Text style={styles.subtitle}>
-              Speak naturally and I'll capture your thoughts
-            </Text>
-          </View>
+      <View style={styles.container}>
+        <Text style={styles.title}>🎉 Laya Mobile</Text>
+        <Text style={styles.subtitle}>Voice-First Task Manager</Text>
+        
+        <TouchableOpacity 
+          style={styles.button}
+          onPress={() => setCount(count + 1)}
+        >
+          <Text style={styles.buttonText}>🎤</Text>
+        </TouchableOpacity>
 
-          {/* Voice Button */}
-          <View style={styles.voiceSection}>
-            <VoiceButton
-              isListening={isListening}
-              onPress={handleVoicePress}
-              onLongPress={handleVoicePress}
-              disabled={!isAvailable}
-            />
-          </View>
-
-          {/* Transcript Display */}
-          {(transcript || error) && (
-            <View style={styles.transcriptContainer}>
-              {error ? (
-                <View style={styles.errorBox}>
-                  <Text style={styles.errorIcon}>⚠️</Text>
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
-              ) : (
-                <View style={styles.transcriptBox}>
-                  <Text style={styles.transcriptLabel}>You said:</Text>
-                  <Text style={styles.transcriptText}>{transcript}</Text>
-                </View>
-              )}
-            </View>
-          )}
-
-          {/* Instructions */}
-          {!transcript && !error && (
-            <View style={styles.instructions}>
-              <Text style={styles.instructionTitle}>How to use:</Text>
-              <Text style={styles.instructionText}>
-                • Tap the microphone button
-              </Text>
-              <Text style={styles.instructionText}>
-                • Speak your tasks naturally
-              </Text>
-              <Text style={styles.instructionText}>
-                • Tap again to stop recording
-              </Text>
-            </View>
-          )}
-
-          {/* Footer */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              {isAvailable
-                ? '🎙️ Voice recognition ready'
-                : '⚠️ Voice recognition unavailable'}
-            </Text>
-          </View>
+        <Text style={styles.counter}>Taps: {count}</Text>
+        
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>
+            ✅ App is working! Voice coming next...
+          </Text>
         </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -116,100 +42,60 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
   },
-  scrollContainer: {
-    flexGrow: 1,
-  },
   container: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 24,
-  },
-  header: {
+    paddingTop: 60,
     alignItems: 'center',
-    marginBottom: 60,
+    justifyContent: 'center',
   },
   title: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: 'bold',
     color: '#111827',
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#6B7280',
     textAlign: 'center',
-    paddingHorizontal: 20,
+    marginBottom: 60,
   },
-  voiceSection: {
-    alignItems: 'center',
+  button: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: '#8B5CF6',
     justifyContent: 'center',
-    marginVertical: 40,
-  },
-  transcriptContainer: {
-    marginTop: 32,
-  },
-  transcriptBox: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
+    alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 3,
+    elevation: 8,
   },
-  transcriptLabel: {
-    fontSize: 14,
+  buttonText: {
+    fontSize: 60,
+  },
+  counter: {
+    marginTop: 24,
+    fontSize: 20,
     color: '#6B7280',
-    marginBottom: 8,
     fontWeight: '600',
   },
-  transcriptText: {
-    fontSize: 18,
-    color: '#111827',
-    lineHeight: 26,
-  },
-  errorBox: {
-    backgroundColor: '#FEE2E2',
-    borderRadius: 16,
-    padding: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  errorIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  errorText: {
-    flex: 1,
-    fontSize: 16,
-    color: '#991B1B',
-  },
-  instructions: {
-    marginTop: 40,
+  badge: {
+    position: 'absolute',
+    bottom: 40,
+    backgroundColor: '#D1FAE5',
     paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
   },
-  instructionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#111827',
-    marginBottom: 12,
-  },
-  instructionText: {
-    fontSize: 16,
-    color: '#6B7280',
-    marginBottom: 8,
-    lineHeight: 24,
-  },
-  footer: {
-    marginTop: 'auto',
-    paddingTop: 40,
-    alignItems: 'center',
-  },
-  footerText: {
+  badgeText: {
     fontSize: 14,
-    color: '#9CA3AF',
+    color: '#065F46',
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
