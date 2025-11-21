@@ -11,6 +11,8 @@ import { useVoice } from './hooks/useVoice';
 import { SmallMicButton } from './components/SmallMicButton';
 import { ConversationModal } from './components/ConversationModal';
 import { ConversationCard } from './components/ConversationCard';
+import { BottomNavigation } from './components/BottomNavigation';
+import { TasksScreen } from './screens/TasksScreen';
 import { Conversation, Message } from './types/conversation';
 import { Task } from './types/task';
 import { generateBotResponse, parseTaskFromMessage } from './utils/mockBot';
@@ -18,6 +20,7 @@ import { parseDate, parseTime, formatDateForDisplay, formatTimeForDisplay } from
 import { generateTopic } from './utils/topicGenerator';
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState<'voice' | 'tasks'>('voice');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
@@ -304,6 +307,20 @@ export default function App() {
     }
   };
 
+  const handleTaskUpdate = (taskId: string, updates: Partial<Task>) => {
+    setTasks(prev =>
+      prev.map(task =>
+        task.id === taskId
+          ? { ...task, ...updates }
+          : task
+      )
+    );
+  };
+
+  const handleTaskDelete = (taskId: string) => {
+    setTasks(prev => prev.filter(task => task.id !== taskId));
+  };
+
   const handleConversationPress = (conversation: Conversation) => {
     // Set as active and open modal
     setActiveConversation(conversation);
@@ -335,40 +352,56 @@ export default function App() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#F3EFE7" />
       
-      <View style={styles.container}>
-        {/* Top Half: Recent Conversations */}
-        <View style={styles.conversationsSection}>
-          {conversations.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyEmoji}>💬</Text>
-              <Text style={styles.emptyText}>No conversations yet</Text>
-              <Text style={styles.emptySubtext}>Tap the mic to start</Text>
-            </View>
-          ) : (
-            <FlatList
-              data={conversations}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <ConversationCard
-                  conversation={item}
-                  onPress={() => handleConversationPress(item)}
-                  onDelete={() => handleDeleteConversation(item.id)}
-                />
-              )}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.listContent}
-            />
-          )}
-        </View>
+      {/* Main Content - Conditional Rendering */}
+      {activeTab === 'voice' ? (
+        <View style={styles.container}>
+          {/* Top Half: Recent Conversations */}
+          <View style={styles.conversationsSection}>
+            {conversations.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyEmoji}>💬</Text>
+                <Text style={styles.emptyText}>No conversations yet</Text>
+                <Text style={styles.emptySubtext}>Tap the mic to start</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={conversations}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <ConversationCard
+                    conversation={item}
+                    onPress={() => handleConversationPress(item)}
+                    onDelete={() => handleDeleteConversation(item.id)}
+                  />
+                )}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.listContent}
+              />
+            )}
+          </View>
 
-        {/* Bottom Half: Mic Button */}
-        <View style={styles.micSection}>
-          <SmallMicButton
-            onPress={handleMicPress}
-            disabled={!isAvailable || permissionStatus === 'denied'}
-          />
+          {/* Bottom Half: Mic Button */}
+          <View style={styles.micSection}>
+            <SmallMicButton
+              onPress={handleMicPress}
+              disabled={!isAvailable || permissionStatus === 'denied'}
+            />
+          </View>
         </View>
-      </View>
+      ) : (
+        <TasksScreen
+          tasks={tasks}
+          onTaskUpdate={handleTaskUpdate}
+          onTaskDelete={handleTaskDelete}
+          onBack={() => setActiveTab('voice')}
+        />
+      )}
+
+      {/* Bottom Navigation */}
+      <BottomNavigation
+        activeTab={activeTab}
+        onTabPress={setActiveTab}
+      />
 
       {/* Conversation Modal */}
       <ConversationModal
@@ -403,24 +436,42 @@ export default function App() {
               let createdTask: Task | null = null;
               
               if (taskInfo && taskInfo.isTask) {
-                // Create or update task
+                // Find existing task from original message
+                const originalMessage = activeConversation.messages[messageIndex];
+                const existingTask = tasks.find(t => 
+                  t.title === parseTaskFromMessage(originalMessage.content)?.title
+                );
+                
                 const dueDate = parseDate(taskInfo.rawDate || '');
                 const dueTime = parseTime(taskInfo.rawTime || '');
                 
-                createdTask = {
-                  id: `task-${Date.now()}-edited`,
-                  title: taskInfo.title,
-                  due_date: dueDate,
-                  due_time: dueTime,
-                  category: taskInfo.suggestedCategory || 'Tasks',
-                  is_done: false,
-                  created_at: new Date(),
-                };
-                
-                // Add to tasks list
-                setTasks(prev => [createdTask!, ...prev]);
-                
-                console.log('✅ Task created from edit:', createdTask);
+                if (existingTask) {
+                  // Update existing task
+                  createdTask = {
+                    ...existingTask,
+                    title: taskInfo.title,
+                    due_date: dueDate,
+                    due_time: dueTime,
+                    category: taskInfo.suggestedCategory || existingTask.category,
+                  };
+                  
+                  setTasks(prev => prev.map(t => t.id === existingTask.id ? createdTask! : t));
+                  console.log('✅ Task updated from edit:', createdTask);
+                } else {
+                  // Create new task
+                  createdTask = {
+                    id: `task-${Date.now()}-edited`,
+                    title: taskInfo.title,
+                    due_date: dueDate,
+                    due_time: dueTime,
+                    category: taskInfo.suggestedCategory || 'Tasks',
+                    is_done: false,
+                    created_at: new Date(),
+                  };
+                  
+                  setTasks(prev => [createdTask!, ...prev]);
+                  console.log('✅ Task created from edit:', createdTask);
+                }
               }
               
               // Regenerate bot response if there's a bot message right after
