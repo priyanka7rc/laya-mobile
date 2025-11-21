@@ -13,6 +13,7 @@ interface VoiceButtonProps {
   onPress: () => void;
   onLongPress: () => void;
   disabled?: boolean;
+  size?: number;
 }
 
 export function VoiceButton({
@@ -20,6 +21,7 @@ export function VoiceButton({
   onPress,
   onLongPress,
   disabled = false,
+  size = BUTTON_SIZE,
 }: VoiceButtonProps) {
   const pulseAnim = React.useRef(new Animated.Value(1)).current;
 
@@ -51,6 +53,9 @@ export function VoiceButton({
         style={[
           styles.ripple,
           {
+            width: size * 1.5,
+            height: size * 1.5,
+            borderRadius: (size * 1.5) / 2,
             transform: [{ scale: pulseAnim }],
             opacity: isListening ? 0.3 : 0,
           },
@@ -60,6 +65,11 @@ export function VoiceButton({
       <TouchableOpacity
         style={[
           styles.button,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+          },
           isListening && styles.buttonListening,
           disabled && styles.buttonDisabled,
         ]}
@@ -68,7 +78,9 @@ export function VoiceButton({
         disabled={disabled}
         activeOpacity={0.7}
       >
-        <Text style={styles.icon}>{isListening ? '🔴' : '🎤'}</Text>
+        <Text style={[styles.icon, { fontSize: size * 0.375 }]}>
+          {isListening ? '🔴' : '🎤'}
+        </Text>
       </TouchableOpacity>
 
       <Text style={styles.hint}>
@@ -81,16 +93,16 @@ export function VoiceButton({
 const { width } = Dimensions.get('window');
 const BUTTON_SIZE = Math.min(width * 0.4, 160);
 
+// Smaller size for modal
+export const MODAL_BUTTON_SIZE = 100;
+
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
   },
   button: {
-    width: BUTTON_SIZE,
-    height: BUTTON_SIZE,
-    borderRadius: BUTTON_SIZE / 2,
-    backgroundColor: '#8B5CF6', // Purple
+    backgroundColor: '#8A9A5B', // Olive green
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -107,7 +119,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   icon: {
-    fontSize: 60,
+    // Size is set dynamically
   },
   hint: {
     marginTop: 16,
@@ -117,10 +129,7 @@ const styles = StyleSheet.create({
   },
   ripple: {
     position: 'absolute',
-    width: BUTTON_SIZE * 1.5,
-    height: BUTTON_SIZE * 1.5,
-    borderRadius: (BUTTON_SIZE * 1.5) / 2,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: '#8A9A5B',
   },
 });
 

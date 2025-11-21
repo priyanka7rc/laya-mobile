@@ -16,8 +16,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.laya.mobile",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Laya needs access to your microphone to capture your voice for creating tasks.",
-        "NSSpeechRecognitionUsageDescription": "Laya uses speech recognition to convert your voice into tasks.",
+        "NSMicrophoneUsageDescription": "Laya needs access to your microphone to capture your voice for creating tasks, notes, and instructions.",
+        "NSSpeechRecognitionUsageDescription": "Laya uses speech recognition to convert your voice into tasks, notes, and instructions.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -52,9 +52,6 @@
       "eas": {
         "projectId": "a67a6c34-8e1e-4fc2-98e1-fd543f6fb737"
       }
-    },
-    "plugins": [
-      "expo-build-properties"
-    ]
+    }
   }
 }
