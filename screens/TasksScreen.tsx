@@ -15,11 +15,13 @@ interface TasksScreenProps {
   onTaskUpdate: (taskId: string, updates: Partial<Task>) => void;
   onTaskDelete: (taskId: string) => void;
   onBack: () => void;
+  onWeekView: () => void;
+  initialDate?: Date;
 }
 
-export function TasksScreen({ tasks, onTaskUpdate, onTaskDelete, onBack }: TasksScreenProps) {
+export function TasksScreen({ tasks, onTaskUpdate, onTaskDelete, onBack, onWeekView, initialDate }: TasksScreenProps) {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(initialDate || new Date());
 
   // Filter tasks by selected date
   const filteredTasks = tasks.filter(task => {
@@ -143,10 +145,17 @@ export function TasksScreen({ tasks, onTaskUpdate, onTaskDelete, onBack }: Tasks
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Text style={styles.backIcon}>←</Text>
-          <Text style={styles.backText}>Voice Chat</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRow}>
+          <TouchableOpacity style={styles.backButton} onPress={onBack}>
+            <Text style={styles.backIcon}>←</Text>
+            <Text style={styles.backText}>Voice Chat</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.weekViewButton} onPress={onWeekView}>
+            <Text style={styles.weekViewText}>Week View</Text>
+            <Text style={styles.weekViewIcon}>→</Text>
+          </TouchableOpacity>
+        </View>
         
         {/* Date Navigation */}
         <View style={styles.dateNavigation}>
@@ -214,10 +223,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+  },
+  weekViewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  weekViewText: {
+    fontSize: 16,
+    color: '#8A9A5B',
+    fontWeight: '500',
+    marginRight: 4,
+  },
+  weekViewIcon: {
+    fontSize: 20,
+    color: '#8A9A5B',
   },
   backIcon: {
     fontSize: 24,

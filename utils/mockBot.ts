@@ -197,7 +197,7 @@ export function parseTaskFromMessage(message: string): ParsedTaskInfo | null {
   
   // Remove date/time phrases from title (comprehensive)
   title = title
-    .replace(/\b(at|@)\s*\d{1,2}:?\d{0,2}\s*([ap]\.?m\.?)?/gi, '') // at 3:00 p.m., at 5pm
+    .replace(/\b(at|@|by)\s*\d{1,2}:?\d{0,2}\s*([ap]\.?m\.?)?/gi, '') // at/by 3:00 p.m., at 5pm, by 6pm
     .replace(/\b[ap]\.?m\.?\b/gi, '') // standalone p.m., a.m.
     .replace(/\bin the\s+(morning|afternoon|evening|night)\b/gi, '') // in the morning
     .replace(/\b(morning|afternoon|evening|night)\b/gi, '') // standalone morning/evening

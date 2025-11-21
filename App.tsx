@@ -13,6 +13,7 @@ import { ConversationModal } from './components/ConversationModal';
 import { ConversationCard } from './components/ConversationCard';
 import { BottomNavigation } from './components/BottomNavigation';
 import { TasksScreen } from './screens/TasksScreen';
+import { WeekView } from './screens/WeekView';
 import { Conversation, Message } from './types/conversation';
 import { Task } from './types/task';
 import { generateBotResponse, parseTaskFromMessage } from './utils/mockBot';
@@ -21,6 +22,8 @@ import { generateTopic } from './utils/topicGenerator';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'voice' | 'tasks'>('voice');
+  const [taskView, setTaskView] = useState<'daily' | 'week'>('week'); // Week view by default
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
@@ -388,12 +391,26 @@ export default function App() {
             />
           </View>
         </View>
-      ) : (
+      ) : taskView === 'daily' ? (
         <TasksScreen
           tasks={tasks}
           onTaskUpdate={handleTaskUpdate}
           onTaskDelete={handleTaskDelete}
           onBack={() => setActiveTab('voice')}
+          onWeekView={() => setTaskView('week')}
+          initialDate={selectedDate}
+        />
+      ) : (
+        <WeekView
+          tasks={tasks}
+          onTaskUpdate={handleTaskUpdate}
+          onTaskDelete={handleTaskDelete}
+          onBack={() => setActiveTab('voice')}
+          onDateSelect={(date) => {
+            setSelectedDate(date);
+            setTaskView('daily');
+          }}
+          initialDate={selectedDate}
         />
       )}
 
