@@ -24,6 +24,7 @@ import { parseDate, parseTime, formatDateForDisplay, formatTimeForDisplay } from
 import { generateTopic } from '../utils/topicGenerator';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { generateUUID } from '../utils/uuid';
 
 export function MainApp() {
   const { session, signOut } = useAuth();
@@ -125,7 +126,7 @@ export function MainApp() {
     if (!transcript.trim()) return;
 
     const userMessage: Message = {
-      id: `msg-${Date.now()}`,
+      id: generateUUID(),
       role: 'user',
       content: transcript.trim(),
       timestamp: new Date(),
@@ -141,7 +142,7 @@ export function MainApp() {
       };
     } else {
       updatedConversation = {
-        id: `conv-${Date.now()}`,
+        id: generateUUID(),
         topic: 'New Conversation',
         messages: [userMessage],
         lastMessageTime: new Date(),
@@ -236,7 +237,7 @@ export function MainApp() {
         }
         
         const botMessage: Message = {
-          id: `msg-${Date.now()}-bot`,
+          id: generateUUID(),
           role: 'bot',
           content: botReply,
           timestamp: new Date(),
@@ -302,7 +303,7 @@ export function MainApp() {
       
       if (!activeConversation) {
         const newConversation: Conversation = {
-          id: `conv-${Date.now()}`,
+          id: generateUUID(),
           topic: 'New Conversation',
           messages: [],
           lastMessageTime: new Date(),
