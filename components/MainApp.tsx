@@ -21,14 +21,12 @@ import { Task } from '../types/task';
 import { generateBotResponse, parseTaskFromMessage } from '../utils/mockBot';
 import { parseDate, parseTime, formatDateForDisplay, formatTimeForDisplay } from '../utils/dateTimeParser';
 import { generateTopic } from '../utils/topicGenerator';
-// import { supabase } from '../lib/supabase'; // Disabled for testing
-// import { useAuth } from '../context/AuthContext'; // Disabled for testing
+import { supabase } from '../lib/supabase';
+
+// Test user ID - bypassing email authentication for testing
+const TEST_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 export function MainApp() {
-  // Authentication temporarily disabled for testing
-  const session = null;
-  const signOut = () => {};
-  
   const [activeTab, setActiveTab] = useState<'voice' | 'tasks'>('voice');
   const [taskView, setTaskView] = useState<'daily' | 'week'>('week');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -40,19 +38,50 @@ export function MainApp() {
   const [currentTranscript, setCurrentTranscript] = useState('');
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [showLastMessageActions, setShowLastMessageActions] = useState(false);
-  const [loadingData, setLoadingData] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load data on mount (disabled for testing without auth)
+  // Load data on mount
   useEffect(() => {
-    // Authentication disabled - using local state only
-    setLoadingData(false);
+    loadUserData();
   }, []);
 
   const loadUserData = async () => {
-    // Authentication disabled - skip database operations
-    console.log('⚠️ Auth disabled: Using local state only, no database sync');
-    setLoadingData(false);
+    try {
+      setLoadingData(true);
+      console.log('📥 Loading data for test user:', TEST_USER_ID);
+      
+      // Load tasks
+      const { data: tasksData, error: tasksError } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('user_id', TEST_USER_ID)
+        .order('created_at', { ascending: false });
+
+      if (tasksError) {
+        console.error('Error loading tasks:', tasksError);
+      } else if (tasksData) {
+        const formattedTasks: Task[] = tasksData.map(task => ({
+          id: task.id,
+          title: task.title,
+          due_date: task.due_date,
+          due_time: task.due_time,
+          category: task.category || 'Tasks',
+          is_done: task.is_done || false,
+          created_at: new Date(task.created_at),
+        }));
+        setTasks(formattedTasks);
+        console.log('✅ Loaded tasks:', formattedTasks.length);
+      }
+
+      // Load conversations (optional - implement later)
+      // For now, keep conversations in local state only
+
+    } catch (error) {
+      console.error('Error loading data:', error);
+    } finally {
+      setLoadingData(false);
+    }
   };
 
   const processTranscript = async (transcript: string) => {
@@ -110,9 +139,43 @@ export function MainApp() {
         created_at: new Date(),
       };
       
-      // Save to local state (database disabled for testing)
-      setTasks(prev => [createdTask!, ...prev]);
-      console.log('✅ Task created (local only):', createdTask);
+      // Save to database
+      try {
+        const { data, error } = await supabase
+          .from('tasks')
+          .insert([{
+            user_id: TEST_USER_ID,
+            title: createdTask.title,
+            due_date: createdTask.due_date,
+            due_time: createdTask.due_time,
+            category: createdTask.category,
+            is_done: false,
+          }])
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Use the returned task with proper ID from database
+        if (data) {
+          const dbTask: Task = {
+            id: data.id,
+            title: data.title,
+            due_date: data.due_date,
+            due_time: data.due_time,
+            category: data.category || 'Tasks',
+            is_done: data.is_done || false,
+            created_at: new Date(data.created_at),
+          };
+          setTasks(prev => [dbTask, ...prev]);
+          console.log('✅ Task saved to database:', dbTask);
+        }
+      } catch (error) {
+        console.error('Error saving task:', error);
+        // Fallback to local state if database fails
+        setTasks(prev => [createdTask!, ...prev]);
+        console.log('⚠️ Task saved locally (database failed)');
+      }
     }
 
     // Generate bot response
@@ -313,19 +376,55 @@ export function MainApp() {
   };
 
   const handleTaskUpdate = async (taskId: string, updates: Partial<Task>) => {
-    // Update local state (database disabled for testing)
-    setTasks(prev =>
-      prev.map(task =>
-        task.id === taskId ? { ...task, ...updates } : task
-      )
-    );
-    console.log('✅ Task updated (local only):', taskId, updates);
+    try {
+      // Update in database
+      const { error } = await supabase
+        .from('tasks')
+        .update(updates)
+        .eq('id', taskId)
+        .eq('user_id', TEST_USER_ID);
+
+      if (error) throw error;
+
+      // Update local state
+      setTasks(prev =>
+        prev.map(task =>
+          task.id === taskId ? { ...task, ...updates } : task
+        )
+      );
+      console.log('✅ Task updated in database:', taskId, updates);
+    } catch (error) {
+      console.error('Error updating task:', error);
+      // Still update local state even if database fails
+      setTasks(prev =>
+        prev.map(task =>
+          task.id === taskId ? { ...task, ...updates } : task
+        )
+      );
+      console.log('⚠️ Task updated locally (database failed)');
+    }
   };
 
   const handleTaskDelete = async (taskId: string) => {
-    // Delete from local state (database disabled for testing)
-    setTasks(prev => prev.filter(task => task.id !== taskId));
-    console.log('✅ Task deleted (local only):', taskId);
+    try {
+      // Delete from database
+      const { error } = await supabase
+        .from('tasks')
+        .delete()
+        .eq('id', taskId)
+        .eq('user_id', TEST_USER_ID);
+
+      if (error) throw error;
+
+      // Update local state
+      setTasks(prev => prev.filter(task => task.id !== taskId));
+      console.log('✅ Task deleted from database:', taskId);
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      // Still delete from local state even if database fails
+      setTasks(prev => prev.filter(task => task.id !== taskId));
+      console.log('⚠️ Task deleted locally (database failed)');
+    }
   };
 
   useEffect(() => {
@@ -355,11 +454,9 @@ export function MainApp() {
       {/* Main Content */}
       {activeTab === 'voice' ? (
         <View style={styles.container}>
-          {/* Top: Sign Out Button */}
+          {/* Test User Mode Indicator */}
           <View style={styles.topBar}>
-            <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
-              <Text style={styles.signOutText}>Sign Out</Text>
-            </TouchableOpacity>
+            <Text style={styles.testModeText}>🧪 Test Mode (Database Active)</Text>
           </View>
 
           {/* Conversations */}
@@ -565,12 +662,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  signOutButton: {
-    padding: 8,
-  },
-  signOutText: {
+  testModeText: {
     color: '#8A9A5B',
-    fontSize: 14,
+    fontSize: 12,
+    fontWeight: '500',
     fontWeight: '500',
   },
   conversationsSection: {

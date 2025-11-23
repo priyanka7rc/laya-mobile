@@ -2,7 +2,7 @@ import React from 'react';
 import { SafeAreaView, StyleSheet } from 'react-native';
 import { MainApp } from './components/MainApp';
 
-// Authentication temporarily disabled for testing
+// Using test user bypass - no email authentication required
 export default function App() {
   return <MainApp />;
 }

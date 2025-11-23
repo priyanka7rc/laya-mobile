@@ -7,7 +7,8 @@ import {
   Modal,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { Task } from '../types/task';
 
@@ -50,7 +51,7 @@ export function EditTaskModal({ task, visible, onClose, onSave, onDelete }: Edit
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose}>
@@ -158,7 +159,7 @@ export function EditTaskModal({ task, visible, onClose, onSave, onDelete }: Edit
             <Text style={styles.deleteButtonText}>Delete Task</Text>
           </TouchableOpacity>
         </ScrollView>
-      </SafeAreaView>
+      </View>
     </Modal>
   );
 }
@@ -167,13 +168,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f9fafb',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 0,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
