@@ -78,8 +78,41 @@ export function MainApp() {
         console.log('✅ Loaded tasks:', formattedTasks.length);
       }
 
-      // Load conversations (optional - implement later)
-      // For now, keep conversations in local state only
+      // Load conversations with messages
+      const { data: conversationsData, error: conversationsError } = await supabase
+        .from('conversations')
+        .select(`
+          *,
+          messages!messages_conversation_id_fkey (
+            id,
+            role,
+            content,
+            created_at
+          )
+        `)
+        .eq('user_id', session.user.id)
+        .order('last_message_time', { ascending: false });
+
+      if (conversationsError) {
+        console.error('Error loading conversations:', conversationsError);
+      } else if (conversationsData) {
+        const formattedConversations: Conversation[] = conversationsData.map(conv => ({
+          id: conv.id,
+          topic: conv.topic,
+          status: conv.status as 'active' | 'saved',
+          lastMessageTime: new Date(conv.last_message_time),
+          messages: (conv.messages || [])
+            .map((msg: any) => ({
+              id: msg.id,
+              role: msg.role as 'user' | 'bot',
+              content: msg.content,
+              timestamp: new Date(msg.created_at),
+            }))
+            .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()), // Sort messages by time
+        }));
+        setConversations(formattedConversations);
+        console.log('✅ Loaded conversations:', formattedConversations.length);
+      }
 
     } catch (error) {
       console.error('Error loading data:', error);
@@ -319,6 +352,52 @@ export function MainApp() {
     }
   };
 
+  const saveConversationToDatabase = async (conversation: Conversation) => {
+    if (!session?.user) return;
+
+    try {
+      // Upsert conversation
+      const { error: convError } = await supabase
+        .from('conversations')
+        .upsert({
+          id: conversation.id,
+          user_id: session.user.id,
+          topic: conversation.topic,
+          status: conversation.status,
+          last_message_time: conversation.lastMessageTime.toISOString(),
+        });
+
+      if (convError) throw convError;
+
+      // Delete existing messages for this conversation
+      await supabase
+        .from('messages')
+        .delete()
+        .eq('conversation_id', conversation.id);
+
+      // Insert all messages
+      if (conversation.messages.length > 0) {
+        const { error: msgError } = await supabase
+          .from('messages')
+          .insert(
+            conversation.messages.map(msg => ({
+              id: msg.id,
+              conversation_id: conversation.id,
+              role: msg.role,
+              content: msg.content,
+              created_at: msg.timestamp.toISOString(),
+            }))
+          );
+
+        if (msgError) throw msgError;
+      }
+
+      console.log('✅ Conversation saved to database:', conversation.id);
+    } catch (error) {
+      console.error('Error saving conversation:', error);
+    }
+  };
+
   const resetInactivityTimer = () => {
     if (inactivityTimerRef.current) {
       clearTimeout(inactivityTimerRef.current);
@@ -333,7 +412,7 @@ export function MainApp() {
     }
   };
 
-  const handleCloseModal = () => {
+  const handleCloseModal = async () => {
     console.log('🚪 Closing modal, active conversation:', activeConversation?.id);
     
     if (isListening) {
@@ -351,6 +430,9 @@ export function MainApp() {
         topic: finalTopic,
         status: 'saved',
       };
+
+      // Save to database
+      await saveConversationToDatabase(savedConversation);
 
       setConversations(prev => {
         const filtered = prev.filter(c => c.id !== savedConversation.id);
@@ -380,8 +462,25 @@ export function MainApp() {
     setIsModalVisible(true);
   };
 
-  const handleDeleteConversation = (conversationId: string) => {
-    setConversations(prev => prev.filter(c => c.id !== conversationId));
+  const handleDeleteConversation = async (conversationId: string) => {
+    if (!session?.user) return;
+
+    try {
+      // Delete from database (messages will be deleted automatically due to CASCADE)
+      const { error } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', conversationId)
+        .eq('user_id', session.user.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setConversations(prev => prev.filter(c => c.id !== conversationId));
+      console.log('✅ Conversation deleted:', conversationId);
+    } catch (error) {
+      console.error('Error deleting conversation:', error);
+    }
   };
 
   const handleTaskUpdate = async (taskId: string, updates: Partial<Task>) => {
