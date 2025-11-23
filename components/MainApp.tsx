@@ -22,11 +22,10 @@ import { generateBotResponse, parseTaskFromMessage } from '../utils/mockBot';
 import { parseDate, parseTime, formatDateForDisplay, formatTimeForDisplay } from '../utils/dateTimeParser';
 import { generateTopic } from '../utils/topicGenerator';
 import { supabase } from '../lib/supabase';
-
-// Test user ID - bypassing email authentication for testing
-const TEST_USER_ID = '00000000-0000-0000-0000-000000000001';
+import { useAuth } from '../context/AuthContext';
 
 export function MainApp() {
+  const { session, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<'voice' | 'tasks'>('voice');
   const [taskView, setTaskView] = useState<'daily' | 'week'>('week');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -43,19 +42,23 @@ export function MainApp() {
 
   // Load data on mount
   useEffect(() => {
-    loadUserData();
-  }, []);
+    if (session?.user) {
+      loadUserData();
+    }
+  }, [session]);
 
   const loadUserData = async () => {
+    if (!session?.user) return;
+    
     try {
       setLoadingData(true);
-      console.log('📥 Loading data for test user:', TEST_USER_ID);
+      console.log('📥 Loading data for user:', session.user.email);
       
       // Load tasks
       const { data: tasksData, error: tasksError } = await supabase
         .from('tasks')
         .select('*')
-        .eq('user_id', TEST_USER_ID)
+        .eq('user_id', session.user.id)
         .order('created_at', { ascending: false });
 
       if (tasksError) {
@@ -141,10 +144,15 @@ export function MainApp() {
       
       // Save to database
       try {
+        if (!session?.user) {
+          console.error('No authenticated user - cannot save task');
+          return;
+        }
+
         const { data, error } = await supabase
           .from('tasks')
           .insert([{
-            user_id: TEST_USER_ID,
+            user_id: session.user.id,
             title: createdTask.title,
             due_date: createdTask.due_date,
             due_time: createdTask.due_time,
@@ -376,13 +384,15 @@ export function MainApp() {
   };
 
   const handleTaskUpdate = async (taskId: string, updates: Partial<Task>) => {
+    if (!session?.user) return;
+
     try {
       // Update in database
       const { error } = await supabase
         .from('tasks')
         .update(updates)
         .eq('id', taskId)
-        .eq('user_id', TEST_USER_ID);
+        .eq('user_id', session.user.id);
 
       if (error) throw error;
 
@@ -406,13 +416,15 @@ export function MainApp() {
   };
 
   const handleTaskDelete = async (taskId: string) => {
+    if (!session?.user) return;
+
     try {
       // Delete from database
       const { error } = await supabase
         .from('tasks')
         .delete()
         .eq('id', taskId)
-        .eq('user_id', TEST_USER_ID);
+        .eq('user_id', session.user.id);
 
       if (error) throw error;
 
@@ -454,9 +466,12 @@ export function MainApp() {
       {/* Main Content */}
       {activeTab === 'voice' ? (
         <View style={styles.container}>
-          {/* Test User Mode Indicator */}
+          {/* User Info & Sign Out */}
           <View style={styles.topBar}>
-            <Text style={styles.testModeText}>🧪 Test Mode (Database Active)</Text>
+            <Text style={styles.userEmail}>{session?.user?.email}</Text>
+            <TouchableOpacity style={styles.signOutButton} onPress={signOut}>
+              <Text style={styles.signOutText}>Sign Out</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Conversations */}
@@ -658,15 +673,26 @@ const styles = StyleSheet.create({
   },
   topBar: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
   },
-  testModeText: {
+  userEmail: {
+    color: '#6b7280',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  signOutButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 6,
+  },
+  signOutText: {
     color: '#8A9A5B',
-    fontSize: 12,
-    fontWeight: '500',
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '600',
   },
   conversationsSection: {
     flex: 1,
