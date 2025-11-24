@@ -247,11 +247,6 @@ export function MainApp() {
           if (suggestion) {
             botReply += `\n\n${suggestion}`;
           }
-
-          // If this is optimistic (regex), add "Laya is working..." message
-          if (isOptimistic) {
-            botReply += '\n\n⏳ Laya is working...';
-          }
         } else {
           botReply = generateBotResponse(transcript, false);
         }
@@ -386,10 +381,8 @@ export function MainApp() {
       const apiTask = await parseTaskWithAPI(transcript, session?.access_token);
       
       if (!apiTask) {
-        // AI failed, remove "Laya is working..." message
-        updateBotMessage(botMessageId, (content) => 
-          content.replace('\n\n⏳ Laya is working...', '')
-        );
+        // AI failed, just log it
+        console.log('⚠️ AI parsing failed, keeping regex result');
         return;
       }
 
@@ -429,17 +422,11 @@ export function MainApp() {
         updateBotMessage(botMessageId, () => newReply);
       } else {
         console.log('✅ Regex parsing was accurate!');
-        // Just remove loading message
-        updateBotMessage(botMessageId, (content) => 
-          content.replace('\n\n⏳ Laya is working...', '')
-        );
+        // No update needed
       }
     } catch (error) {
       console.error('❌ AI improvement failed:', error);
-      // Remove loading message on error
-      updateBotMessage(botMessageId, (content) => 
-        content.replace('\n\n⏳ Laya is working...', '')
-      );
+      // Keep regex result on error
     }
   };
 
