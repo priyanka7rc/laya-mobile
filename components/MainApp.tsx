@@ -25,6 +25,8 @@ import { generateTopic } from '../utils/topicGenerator';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { generateUUID } from '../utils/uuid';
+import { parseTaskWithAPI } from '../lib/api';
+import { checkForSimilarTasks } from '../utils/similarTaskDetector';
 
 export function MainApp() {
   const { session, signOut } = useAuth();
@@ -156,26 +158,54 @@ export function MainApp() {
 
     console.log('📝 Processing transcript:', transcript);
     
-    const taskInfo = parseTaskFromMessage(transcript);
-    console.log('📋 Task info:', taskInfo);
     let createdTask: Task | null = null;
-    
-    if (taskInfo && taskInfo.isTask) {
-      console.log('✅ Detected as task, parsing date/time...');
-      const dueDate = parseDate(taskInfo.rawDate || '');
-      const dueTime = parseTime(taskInfo.rawTime || '');
-      console.log('📅 Parsed date:', dueDate);
-      console.log('🕐 Parsed time:', dueTime);
+    let taskInfo = null;
+
+    // Try OpenAI API first
+    try {
+      const apiTask = await parseTaskWithAPI(transcript, session?.access_token);
       
-      createdTask = {
-        id: `task-${Date.now()}`,
-        title: taskInfo.title,
-        due_date: dueDate,
-        due_time: dueTime,
-        category: taskInfo.suggestedCategory || 'Tasks',
-        is_done: false,
-        created_at: new Date(),
-      };
+      if (apiTask) {
+        console.log('🤖 Using AI-parsed task:', apiTask);
+        createdTask = {
+          id: `task-${Date.now()}`,
+          title: apiTask.title,
+          due_date: apiTask.due_date,
+          due_time: apiTask.due_time,
+          category: apiTask.category || 'Tasks',
+          is_done: false,
+          created_at: new Date(),
+        };
+      }
+    } catch (apiError) {
+      console.log('⚠️ API parsing failed, using fallback:', apiError);
+    }
+
+    // Fallback to regex parsing if API failed
+    if (!createdTask) {
+      taskInfo = parseTaskFromMessage(transcript);
+      console.log('📋 Regex task info:', taskInfo);
+      
+      if (taskInfo && taskInfo.isTask) {
+        console.log('✅ Detected as task, parsing date/time...');
+        const dueDate = parseDate(taskInfo.rawDate || '');
+        const dueTime = parseTime(taskInfo.rawTime || '');
+        console.log('📅 Parsed date:', dueDate);
+        console.log('🕐 Parsed time:', dueTime);
+        
+        createdTask = {
+          id: `task-${Date.now()}`,
+          title: taskInfo.title,
+          due_date: dueDate,
+          due_time: dueTime,
+          category: taskInfo.suggestedCategory || 'Tasks',
+          is_done: false,
+          created_at: new Date(),
+        };
+      }
+    }
+    
+    if (createdTask) {
       
       // Save to database
       try {
@@ -232,6 +262,12 @@ export function MainApp() {
           const dateDisplay = createdTask.due_date ? formatDateForDisplay(createdTask.due_date) : 'Today';
           const timeDisplay = createdTask.due_time ? formatTimeForDisplay(createdTask.due_time) : '8:00 PM';
           botReply = `✓ Task created: "${createdTask.title}"\n📅 ${dateDisplay} at ${timeDisplay}\n📁 ${createdTask.category}`;
+          
+          // Check for similar tasks and add suggestion
+          const suggestion = checkForSimilarTasks(createdTask, tasks);
+          if (suggestion) {
+            botReply += `\n\n${suggestion}`;
+          }
         } else {
           botReply = generateBotResponse(transcript, false);
         }
