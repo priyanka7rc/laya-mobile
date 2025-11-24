@@ -159,50 +159,29 @@ export function MainApp() {
     console.log('📝 Processing transcript:', transcript);
     
     let createdTask: Task | null = null;
-    let taskInfo = null;
+    let isOptimistic = false;
 
-    // Try OpenAI API first
-    try {
-      const apiTask = await parseTaskWithAPI(transcript, session?.access_token);
+    // OPTIMISTIC: Parse with regex immediately (instant feedback)
+    const taskInfo = parseTaskFromMessage(transcript);
+    console.log('📋 Regex task info:', taskInfo);
+    
+    if (taskInfo && taskInfo.isTask) {
+      console.log('✅ Detected as task, parsing date/time...');
+      const dueDate = parseDate(taskInfo.rawDate || '');
+      const dueTime = parseTime(taskInfo.rawTime || '');
+      console.log('📅 Parsed date:', dueDate);
+      console.log('🕐 Parsed time:', dueTime);
       
-      if (apiTask) {
-        console.log('🤖 Using AI-parsed task:', apiTask);
-        createdTask = {
-          id: `task-${Date.now()}`,
-          title: apiTask.title,
-          due_date: apiTask.due_date,
-          due_time: apiTask.due_time,
-          category: apiTask.category || 'Tasks',
-          is_done: false,
-          created_at: new Date(),
-        };
-      }
-    } catch (apiError) {
-      console.log('⚠️ API parsing failed, using fallback:', apiError);
-    }
-
-    // Fallback to regex parsing if API failed
-    if (!createdTask) {
-      taskInfo = parseTaskFromMessage(transcript);
-      console.log('📋 Regex task info:', taskInfo);
-      
-      if (taskInfo && taskInfo.isTask) {
-        console.log('✅ Detected as task, parsing date/time...');
-        const dueDate = parseDate(taskInfo.rawDate || '');
-        const dueTime = parseTime(taskInfo.rawTime || '');
-        console.log('📅 Parsed date:', dueDate);
-        console.log('🕐 Parsed time:', dueTime);
-        
-        createdTask = {
-          id: `task-${Date.now()}`,
-          title: taskInfo.title,
-          due_date: dueDate,
-          due_time: dueTime,
-          category: taskInfo.suggestedCategory || 'Tasks',
-          is_done: false,
-          created_at: new Date(),
-        };
-      }
+      createdTask = {
+        id: `task-${Date.now()}`,
+        title: taskInfo.title,
+        due_date: dueDate,
+        due_time: dueTime,
+        category: taskInfo.suggestedCategory || 'Tasks',
+        is_done: false,
+        created_at: new Date(),
+      };
+      isOptimistic = true;
     }
     
     if (createdTask) {
@@ -251,7 +230,7 @@ export function MainApp() {
       }
     }
 
-    // Generate bot response
+    // Generate bot response immediately (optimistic UI)
     setTimeout(() => {
       setIsBotTyping(true);
       
@@ -267,6 +246,11 @@ export function MainApp() {
           const suggestion = checkForSimilarTasks(createdTask, tasks);
           if (suggestion) {
             botReply += `\n\n${suggestion}`;
+          }
+
+          // If this is optimistic (regex), add "Laya is working..." message
+          if (isOptimistic) {
+            botReply += '\n\n⏳ Laya is working...';
           }
         } else {
           botReply = generateBotResponse(transcript, false);
@@ -298,6 +282,11 @@ export function MainApp() {
         setIsBotTyping(false);
         setShowLastMessageActions(true);
         resetInactivityTimer();
+
+        // If optimistic, try to improve with AI in background
+        if (isOptimistic && createdTask) {
+          improveTaskWithAI(transcript, createdTask, botMessage.id);
+        }
       }, 600);
     }, 200);
   };
@@ -387,6 +376,92 @@ export function MainApp() {
         startListening();
       }, 300);
     }
+  };
+
+  const improveTaskWithAI = async (transcript: string, optimisticTask: Task, botMessageId: string) => {
+    console.log('🤖 Improving task with AI in background...');
+    
+    try {
+      // Call AI API
+      const apiTask = await parseTaskWithAPI(transcript, session?.access_token);
+      
+      if (!apiTask) {
+        // AI failed, remove "Laya is working..." message
+        updateBotMessage(botMessageId, (content) => 
+          content.replace('\n\n⏳ Laya is working...', '')
+        );
+        return;
+      }
+
+      console.log('🎯 AI result:', apiTask);
+
+      // Check if AI result is different/better
+      const isDifferent = 
+        apiTask.title !== optimisticTask.title ||
+        apiTask.due_date !== optimisticTask.due_date ||
+        apiTask.due_time !== optimisticTask.due_time ||
+        apiTask.category !== optimisticTask.category;
+
+      if (isDifferent) {
+        console.log('✨ AI improved the task!');
+        
+        // Update task in database
+        const aiTask: Task = {
+          ...optimisticTask,
+          title: apiTask.title,
+          due_date: apiTask.due_date,
+          due_time: apiTask.due_time,
+          category: apiTask.category || 'Tasks',
+        };
+
+        await handleTaskUpdate(optimisticTask.id, {
+          title: aiTask.title,
+          due_date: aiTask.due_date,
+          due_time: aiTask.due_time,
+          category: aiTask.category,
+        });
+
+        // Update bot message with improved result
+        const dateDisplay = aiTask.due_date ? formatDateForDisplay(aiTask.due_date) : 'Today';
+        const timeDisplay = aiTask.due_time ? formatTimeForDisplay(aiTask.due_time) : '8:00 PM';
+        const newReply = `✓ Task created: "${aiTask.title}"\n📅 ${dateDisplay} at ${timeDisplay}\n📁 ${aiTask.category}`;
+        
+        updateBotMessage(botMessageId, () => newReply);
+      } else {
+        console.log('✅ Regex parsing was accurate!');
+        // Just remove loading message
+        updateBotMessage(botMessageId, (content) => 
+          content.replace('\n\n⏳ Laya is working...', '')
+        );
+      }
+    } catch (error) {
+      console.error('❌ AI improvement failed:', error);
+      // Remove loading message on error
+      updateBotMessage(botMessageId, (content) => 
+        content.replace('\n\n⏳ Laya is working...', '')
+      );
+    }
+  };
+
+  const updateBotMessage = (messageId: string, updateFn: (content: string) => string) => {
+    setActiveConversation(prev => {
+      if (!prev) return null;
+      
+      const updatedMessages = prev.messages.map(msg => {
+        if (msg.id === messageId) {
+          return {
+            ...msg,
+            content: updateFn(msg.content),
+          };
+        }
+        return msg;
+      });
+
+      return {
+        ...prev,
+        messages: updatedMessages,
+      };
+    });
   };
 
   const saveConversationToDatabase = async (conversation: Conversation) => {
