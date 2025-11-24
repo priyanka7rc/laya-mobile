@@ -173,7 +173,7 @@ export function MainApp() {
       console.log('🕐 Parsed time:', dueTime);
       
       createdTask = {
-        id: `task-${Date.now()}`,
+        id: generateUUID(),
         title: taskInfo.title,
         due_date: dueDate,
         due_time: dueTime,
@@ -803,7 +803,7 @@ export function MainApp() {
                   console.log('✅ Task updated from edit:', createdTask);
                 } else {
                   createdTask = {
-                    id: `task-${Date.now()}-edited`,
+                    id: generateUUID(),
                     title: taskInfo.title,
                     due_date: dueDate,
                     due_time: dueTime,
