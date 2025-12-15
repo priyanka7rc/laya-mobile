@@ -159,6 +159,7 @@ export function MainApp() {
     console.log('📝 Processing transcript:', transcript);
     
     let createdTask: Task | null = null;
+    let taskForAI: Task | null = null; // Store task with correct database ID for AI improvement
     let isOptimistic = false;
 
     // OPTIMISTIC: Parse with regex immediately (instant feedback)
@@ -220,12 +221,14 @@ export function MainApp() {
             created_at: new Date(data.created_at),
           };
           setTasks(prev => [dbTask, ...prev]);
+          taskForAI = dbTask; // Store the task with correct database ID for AI
           console.log('✅ Task saved to database:', dbTask);
         }
       } catch (error) {
         console.error('Error saving task:', error);
         // Fallback to local state if database fails
         setTasks(prev => [createdTask!, ...prev]);
+        taskForAI = createdTask; // Use optimistic task if database fails
         console.log('⚠️ Task saved locally (database failed)');
       }
     }
@@ -279,8 +282,8 @@ export function MainApp() {
         resetInactivityTimer();
 
         // If optimistic, try to improve with AI in background
-        if (isOptimistic && createdTask) {
-          improveTaskWithAI(transcript, createdTask, botMessage.id);
+        if (isOptimistic && taskForAI) {
+          improveTaskWithAI(transcript, taskForAI, botMessage.id);
         }
       }, 600);
     }, 200);
@@ -931,5 +934,4 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3EFE7',
   },
 });
-
 
